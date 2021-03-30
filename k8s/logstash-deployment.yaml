@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash-deployment
+  namespace: kube-honduras
+  labels:
+    app: logstash-honduras
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: logstash-honduras
+  template:
+    metadata:
+      labels:
+        app: logstash-honduras
+    spec:
+      containers:
+      - name: logstash-service
+        image:  {{DOCKER_IMAGE_TAG}}
+        imagePullPolicy: Always
+        resources:
+            requests:
+              memory: "1024Mi"
+            limits:
+              memory: "2048Mi"
+        ports:
+          - containerPort: 4560
+            name: http
+            protocol: TCP
+        livenessProbe:
+          tcpSocket:
+            port: 4560
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+        env:
+          - name: ES_USER
+            value: elastic          
+          - name: ES_PWD #container will pull this environment
+            valueFrom: 
+              secretKeyRef:
+                name: es-cluster-es-elastic-user
+                key: elastic
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: logstash
+  namespace: kube-honduras
+  labels:
+    app: logstash-honduras
+spec:
+  type: ClusterIP
+  selector:
+    app: logstash-honduras
+  ports:
+  - port: 4560
+    targetPort: 4560    
